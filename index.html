@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Bancada Retro</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Projeto de emulador · NES + Super Nintendo</p>
+        <h1>Bancada Retro</h1>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite">Jogue Donkey Kong Country na web ou abra outra ROM</p>
+    </header>
+
+    <main class="layout">
+      <section class="stage" id="stage">
+        <div class="bezel">
+          <div id="screen" class="screen" aria-label="Tela do jogo"></div>
+          <div id="empty" class="empty">
+            <div id="web-game-hero" class="web-game-hero" hidden>
+              <p class="web-game-eyebrow">Jogo na web</p>
+              <h2 id="web-game-title" class="web-game-title">—</h2>
+              <p id="web-game-blurb" class="hint web-game-blurb"></p>
+              <div class="web-game-actions">
+                <button type="button" id="web-play" class="button primary">Jogar</button>
+                <button type="button" id="web-continue">Continuar</button>
+              </div>
+              <p id="web-game-save-hint" class="hint web-game-save-hint"></p>
+            </div>
+            <p class="empty-divider">ou abra outra ROM</p>
+            <p>Arraste <strong>.nes</strong>, <strong>.sfc</strong> ou <strong>.smc</strong>, ou use Abrir ROM.</p>
+            <p id="notice" class="hint">
+              Super Nintendo usa <strong>.sfc</strong> ou <strong>.smc</strong> (não é ISO). ISO de CD/PS1 ainda não entra. Abra pelo servidor local (não duplo-clique no HTML). Arquivos .smc com 512 bytes extras são corrigidos automaticamente.
+            </p>
+            <label class="button primary" for="rom-input">Abrir ROM</label>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel">
+        <section id="web-game-panel" hidden>
+          <h2>Jogo na web</h2>
+          <div id="web-game-panel-body" class="web-game-panel-card"></div>
+          <p class="hint">ROM em <code>games/roms/</code> — veja <code>games/LEIA-ME.md</code>.</p>
+        </section>
+
+        <section>
+          <h2>Sessão</h2>
+          <p id="banner" class="banner" hidden></p>
+          <div class="actions">
+            <label class="button primary" for="rom-input">Abrir ROM</label>
+            <button type="button" id="pause" disabled>Pausar</button>
+            <button type="button" id="restart" disabled>Reiniciar</button>
+            <button type="button" id="save-state" disabled>Salvar rápido</button>
+            <button type="button" id="load-state" disabled>Carregar rápido</button>
+            <button type="button" id="fullscreen">Tela cheia</button>
+          </div>
+          <p id="fps" class="fps">— fps</p>
+          <input id="rom-input" type="file" hidden />
+        </section>
+
+        <section>
+          <h2>Neste navegador</h2>
+          <ul id="library" class="library"></ul>
+        </section>
+
+        <section>
+          <h2>Controles (NES)</h2>
+          <dl class="keys">
+            <div><dt>Direção</dt><dd>Setas</dd></div>
+            <div><dt>A</dt><dd>X</dd></div>
+            <div><dt>B</dt><dd>Z</dd></div>
+            <div><dt>Start</dt><dd>Enter</dd></div>
+            <div><dt>Select</dt><dd>Ctrl direito</dd></div>
+          </dl>
+          <p class="hint">
+            No SNES, o RetroArch usa teclado padrão (setas, Z/X ou A/S, Enter, Shift). Controle USB funciona nos dois.
+          </p>
+        </section>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <p>
+        NES via <a href="https://github.com/bfirsh/jsnes">jsnes</a>. SNES via
+        <a href="https://github.com/arianrhodsandlot/nostalgist">Nostalgist</a> (núcleo snes9x, baixado na primeira execução).
+        Lógica em <code>script.js</code>.
+      </p>
+    </footer>
+
+    <script src="vendor/jsnes.min.js"></script>
+    <script src="vendor/nostalgist.umd.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
