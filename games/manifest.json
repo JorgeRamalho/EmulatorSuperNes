@@ -5,7 +5,8 @@
       "title": "Donkey Kong Country",
       "description": "Super Nintendo · progresso salvo neste navegador.",
       "system": "snes",
-      "file": "roms/donkey-kong-country-usa.sfc"
+      "file": "roms/donkey-kong-country-usa.sfc",
+      "altFiles": ["roms/donkey-kong-country.sfc"]
     }
   ]
 }

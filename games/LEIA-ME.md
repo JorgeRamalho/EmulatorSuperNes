@@ -4,6 +4,14 @@ A ROM **não vai para o Git** — só fica em `games/roms/` no seu computador ou
 
 ## Donkey Kong Country
 
+Para **Vercel / GitHub Pages**, a ROM vai embutida no site (não em `games/roms/` no servidor):
+
+1. Copie o `.sfc` para `games/roms/donkey-kong-country-usa.sfc` (ou deixe no Downloads com o nome original).
+2. Rode: `npm run embed-rom` — gera `games/embedded/donkey-kong-country-usa.js` (commit esse arquivo no Git).
+3. Faça deploy de novo.
+
+Uso só local (sem embed):
+
 1. Copie o seu `.sfc` para:
    `games/roms/donkey-kong-country-usa.sfc`
 2. Na pasta do projeto:

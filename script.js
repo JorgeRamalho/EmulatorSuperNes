@@ -39,7 +39,47 @@ const state = {
   webGames: [],
 };
 
-const DEFAULT_NOTICE = noticeNode.textContent.trim();
+const DEFAULT_NOTICE = noticeNode?.textContent?.trim() ?? "";
+
+function getAppBaseUrl() {
+  const script = document.querySelector("script[src*='script.js']");
+  if (script instanceof HTMLScriptElement && script.src) {
+    return new URL(".", script.src);
+  }
+  return new URL("./", window.location.href);
+}
+
+function assetUrl(relativePath) {
+  const normalized = relativePath.replace(/^\//, "");
+  return new URL(normalized, getAppBaseUrl());
+}
+
+const DEFAULT_WEB_GAME = {
+  id: "donkey-kong-country-usa",
+  title: "Donkey Kong Country",
+  description: "Super Nintendo · progresso salvo neste navegador.",
+  system: "snes",
+  file: "roms/donkey-kong-country-usa.sfc",
+};
+
+function decodeEmbeddedRomBase64(base64) {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+}
+
+function getEmbeddedRomBytes(gameId) {
+  const store = globalThis.__BANCADA_EMBEDDED_ROMS__;
+  if (!store || typeof store !== "object") return null;
+  const payload = store[gameId];
+  if (!payload) return null;
+  if (payload instanceof Uint8Array) return payload;
+  if (typeof payload === "string") return decodeEmbeddedRomBase64(payload);
+  return null;
+}
 
 function setStatus(message, kind = "info") {
   statusNode.textContent = message;
@@ -450,12 +490,16 @@ function renderWebGamePanel(game) {
 
 async function loadWebGames() {
   try {
-    const response = await fetch("games/manifest.json", { cache: "no-cache" });
+    const response = await fetch(assetUrl("games/manifest.json"), { cache: "no-cache" });
     if (!response.ok) throw new Error("manifesto não encontrado");
     const manifest = await response.json();
     state.webGames = Array.isArray(manifest.games) ? manifest.games : [];
   } catch {
     state.webGames = [];
+  }
+
+  if (state.webGames.length === 0 && getEmbeddedRomBytes(DEFAULT_WEB_GAME.id)) {
+    state.webGames = [DEFAULT_WEB_GAME];
   }
 
   const game = state.webGames[0];
@@ -481,16 +525,37 @@ async function launchWebGame(game, options = {}) {
     );
   }
 
-  const romUrl = new URL(`games/${game.file}`, window.location.href);
-  const response = await fetch(romUrl, { cache: "no-cache" });
-  if (!response.ok) {
-    throw new Error(
-      `ROM não encontrada (${game.file}). Copie o .sfc para games/roms/ — veja games/LEIA-ME.md.`,
-    );
-  }
+  let bytes = getEmbeddedRomBytes(game.id);
+  let fileName = game.file.split("/").pop() || "jogo.sfc";
 
-  const bytes = new Uint8Array(await response.arrayBuffer());
-  const fileName = game.file.split("/").pop() || "jogo.sfc";
+  if (!bytes) {
+    const romPathCandidates = [
+      `games/${game.file}`,
+      ...(Array.isArray(game.altFiles) ? game.altFiles.map((file) => `games/${file}`) : []),
+    ];
+
+    let romUrl = null;
+    let response = null;
+    for (const path of romPathCandidates) {
+      const url = assetUrl(path);
+      const attempt = await fetch(url, { cache: "no-cache" });
+      if (attempt.ok) {
+        romUrl = url;
+        response = attempt;
+        break;
+      }
+    }
+
+    if (!response || !romUrl) {
+      const tried = romPathCandidates.map((path) => assetUrl(path).href).join(" · ");
+      throw new Error(
+        `ROM não encontrada (${game.file}). Rode npm run embed-rom e faça deploy de novo, ou coloque o .sfc em games/roms/. URLs testadas: ${tried}`,
+      );
+    }
+
+    bytes = new Uint8Array(await response.arrayBuffer());
+    fileName = romUrl.pathname.split("/").pop() || fileName;
+  }
   const playable = await findPlayableRom(fileName, bytes);
   playable.gameId = game.id;
   playable.displayTitle = game.title;
