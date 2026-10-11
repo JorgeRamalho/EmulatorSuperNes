@@ -599,6 +599,8 @@ function systemLabel(system) {
 }
 
 async function refreshLibrary() {
+  if (!libraryNode) return;
+
   const roms = await getAllRecords("roms");
   roms.sort((left, right) => right.savedAt - left.savedAt);
   libraryNode.replaceChildren();
@@ -984,11 +986,29 @@ function showOriginHints() {
   );
 }
 
+async function maybeAutoplayWebGame() {
+  const params = new URLSearchParams(window.location.search);
+  const autoplay =
+    params.get("autoplay") === "1" || document.body.classList.contains("autoplay-web-game");
+  if (!autoplay) return;
+
+  const game = state.webGames[0];
+  if (!game) {
+    setStatus("ROM do jogo na web não configurada. Veja games/LEIA-ME.md.", "error");
+    return;
+  }
+
+  const continueSession = params.get("continuar") === "1";
+  await launchWebGame(game, { continueSession });
+}
+
 syncControls();
 showOriginHints();
-loadWebGames().catch((error) => {
-  console.warn("[Bancada Retro] Vitrine não carregou:", error);
-});
+loadWebGames()
+  .then(() => maybeAutoplayWebGame())
+  .catch((error) => {
+    console.warn("[Bancada Retro] Vitrine não carregou:", error);
+  });
 refreshLibrary().catch((error) => {
   console.warn("[Bancada Retro] Lista local indisponível:", error);
 });

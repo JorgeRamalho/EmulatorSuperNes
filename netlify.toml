@@ -1,0 +1,3 @@
+# Site estático: HTML + ROM em games/roms/ (não vai no Git; inclua no deploy local).
+[build]
+  publish = "."

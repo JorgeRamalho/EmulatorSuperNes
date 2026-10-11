@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Donkey Kong Country</title>
+    <link rel="stylesheet" href="style.css" />
+    <style>
+      .layout--solo {
+        grid-template-columns: 1fr;
+        max-width: 960px;
+      }
+      .layout--solo .panel {
+        display: none;
+      }
+      .topbar--solo h1 {
+        font-size: 1.35rem;
+      }
+    </style>
+  </head>
+  <body class="autoplay-web-game">
+    <header class="topbar topbar--solo">
+      <div>
+        <p class="eyebrow">Super Nintendo no navegador</p>
+        <h1>Donkey Kong Country</h1>
+      </div>
+      <p id="status" class="status" role="status" aria-live="polite">Carregando…</p>
+    </header>
+
+    <main class="layout layout--solo">
+      <section class="stage" id="stage">
+        <div class="bezel">
+          <div id="screen" class="screen" aria-label="Tela do jogo"></div>
+          <div id="empty" class="empty">
+            <div id="web-game-hero" class="web-game-hero" hidden>
+              <p class="web-game-eyebrow">Jogo na web</p>
+              <h2 id="web-game-title" class="web-game-title">—</h2>
+              <p id="web-game-blurb" class="hint web-game-blurb"></p>
+              <div class="web-game-actions">
+                <button type="button" id="web-play" class="button primary">Jogar</button>
+                <button type="button" id="web-continue">Continuar</button>
+              </div>
+              <p id="web-game-save-hint" class="hint web-game-save-hint"></p>
+            </div>
+            <p class="hint">Aguarde o núcleo SNES (primeira vez pode levar ~1 min; precisa de internet).</p>
+            <p id="notice" class="hint"></p>
+          </div>
+        </div>
+      </section>
+
+      <aside class="panel" hidden>
+        <section>
+          <h2>Sessão</h2>
+          <p id="banner" class="banner" hidden></p>
+          <div class="actions">
+            <button type="button" id="pause" disabled>Pausar</button>
+            <button type="button" id="restart" disabled>Reiniciar</button>
+            <button type="button" id="save-state" disabled>Salvar rápido</button>
+            <button type="button" id="load-state" disabled>Carregar rápido</button>
+            <button type="button" id="fullscreen">Tela cheia</button>
+          </div>
+          <p id="fps" class="fps">— fps</p>
+          <input id="rom-input" type="file" hidden />
+        </section>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <p>
+        <a href="index.html">Bancada completa</a> · SNES via
+        <a href="https://github.com/arianrhodsandlot/nostalgist">Nostalgist</a>
+      </p>
+    </footer>
+
+    <script src="vendor/nostalgist.umd.js"></script>
+    <script src="script.js"></script>
+  </body>
+</html>
