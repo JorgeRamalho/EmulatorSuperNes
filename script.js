@@ -1,6 +1,14 @@
 const DB_NAME = "bancada-nes";
 const DB_VERSION = 3;
 const SRAM_AUTOSAVE_MS = 60_000;
+const SRAM_AUTOSAVE_MOBILE_MS = 120_000;
+const FIT_SCREEN_DEBOUNCE_MS = 160;
+/** Buffer de áudio RetroArch (ms). Mobile precisa de valor maior para evitar cortes. */
+const AUDIO_LATENCY_MOBILE_MS = 224;
+const AUDIO_LATENCY_DESKTOP_MS = 48;
+
+let fitScreenTimer = null;
+let lastScreenFitKey = "";
 
 const statusNode = document.querySelector("#status");
 const noticeNode = document.querySelector("#notice");
@@ -37,6 +45,7 @@ const state = {
   running: false,
   sramTimer: null,
   webGames: [],
+  pausedByVisibility: false,
 };
 
 const DEFAULT_NOTICE = noticeNode?.textContent?.trim() ?? "";
@@ -69,6 +78,66 @@ function decodeEmbeddedRomBase64(base64) {
     bytes[index] = binary.charCodeAt(index);
   }
   return bytes;
+}
+
+function isMobilePlayContext() {
+  return (
+    window.matchMedia("(pointer: coarse)").matches ||
+    window.matchMedia("(max-width: 860px)").matches
+  );
+}
+
+function getSnesCoreName() {
+  return isMobilePlayContext() ? "snes9x2010" : "snes9x";
+}
+
+function getSnesRetroarchConfig() {
+  const mobile = isMobilePlayContext();
+  return {
+    video_shader_enable: false,
+    video_smooth: false,
+    video_vsync: false,
+    video_hard_sync: false,
+    video_frame_delay: 0,
+    audio_enable: true,
+    audio_sync: true,
+    audio_rate_control: true,
+    audio_max_timing_skew: 0.05,
+    audio_latency: mobile ? AUDIO_LATENCY_MOBILE_MS : AUDIO_LATENCY_DESKTOP_MS,
+    audio_resampler_quality: mobile ? 1 : 3,
+    run_ahead_enabled: false,
+    rewind_enable: false,
+  };
+}
+
+function configureNostalgistDefaults() {
+  if (typeof Nostalgist === "undefined") return;
+  Nostalgist.configure({
+    retroarchConfig: {
+      video_shader_enable: false,
+      rewind_enable: false,
+      run_ahead_enabled: false,
+    },
+  });
+}
+
+function bindSnesMobileAudioUnlock(canvas) {
+  if (!isMobilePlayContext() || !canvas) return;
+
+  const unlock = () => {
+    try {
+      if (state.snesEmulator && state.running) {
+        state.snesEmulator.resume();
+      }
+    } catch {
+      // ignore — gesto do usuário já desbloqueou o contexto na maioria dos casos
+    }
+    canvas.removeEventListener("pointerdown", unlock);
+    canvas.removeEventListener("touchstart", unlock);
+  };
+
+  canvas.addEventListener("pointerdown", unlock, { passive: true });
+  canvas.addEventListener("touchstart", unlock, { passive: true });
 }
 
 function getEmbeddedRomBytes(gameId) {
@@ -383,9 +452,10 @@ function stopSramAutosave() {
 function startSramAutosave() {
   stopSramAutosave();
   if (!state.gameId || state.system !== "snes") return;
+  const interval = isMobilePlayContext() ? SRAM_AUTOSAVE_MOBILE_MS : SRAM_AUTOSAVE_MS;
   state.sramTimer = window.setInterval(() => {
     persistSram().catch(() => {});
-  }, SRAM_AUTOSAVE_MS);
+  }, interval);
 }
 
 async function loadSramBytes(gameKey) {
@@ -644,11 +714,19 @@ function fitScreen() {
     return;
   }
 
+  if (state.system === "snes" && isMobilePlayContext()) {
+    return;
+  }
+
   const canvas = state.snesCanvas || screenNode.querySelector("canvas");
   if (!canvas) return;
 
   const parentWidth = screenNode.clientWidth;
   const parentHeight = screenNode.clientHeight;
+  const fitKey = `${parentWidth}x${parentHeight}`;
+  if (fitKey === lastScreenFitKey) return;
+  lastScreenFitKey = fitKey;
+
   const ratio = 256 / 224;
   if (parentWidth / parentHeight > ratio) {
     canvas.style.height = `${parentHeight}px`;
@@ -657,6 +735,16 @@ function fitScreen() {
     canvas.style.width = `${parentWidth}px`;
     canvas.style.height = `${Math.round(parentWidth / ratio)}px`;
   }
+}
+
+function scheduleFitScreen() {
+  if (fitScreenTimer !== null) {
+    window.clearTimeout(fitScreenTimer);
+  }
+  fitScreenTimer = window.setTimeout(() => {
+    fitScreenTimer = null;
+    requestAnimationFrame(fitScreen);
+  }, FIT_SCREEN_DEBOUNCE_MS);
 }
 
 function systemLabel(system) {
@@ -744,17 +832,26 @@ async function startGame(playable) {
         );
       }
 
+      const snesCore = getSnesCoreName();
+      const mobile = isMobilePlayContext();
       setStatus(
-        `Baixando núcleo SNES (snes9x)… na primeira vez pode levar até 1 minuto. Precisa de internet.`,
+        mobile
+          ? `Baixando núcleo SNES (${snesCore}, otimizado para celular)… primeira vez pode levar até 1 minuto.`
+          : `Baixando núcleo SNES (${snesCore})… na primeira vez pode levar até 1 minuto. Precisa de internet.`,
       );
 
       const canvas = document.createElement("canvas");
       canvas.className = "snes-canvas";
+      if (mobile) {
+        canvas.classList.add("snes-canvas--mobile");
+      }
       screenNode.append(canvas);
       state.snesCanvas = canvas;
 
       const launchOptions = {
         element: canvas,
+        core: snesCore,
+        retroarchConfig: getSnesRetroarchConfig(),
         rom: {
           fileContent: playable.bytes,
           fileName: playable.name,
@@ -776,12 +873,17 @@ async function startGame(playable) {
         }
       }
 
-      state.snesEmulator = await Nostalgist.snes(launchOptions);
+      state.snesEmulator = await Nostalgist.launch(launchOptions);
+      bindSnesMobileAudioUnlock(canvas);
 
       state.running = true;
       emptyNode.hidden = true;
       startSramAutosave();
-      setStatus(`Rodando ${state.displayTitle} (SNES) — clique na tela se o som não começar.`);
+      setStatus(
+        mobile
+          ? `Rodando ${state.displayTitle} (SNES) — toque na tela se o som não começar.`
+          : `Rodando ${state.displayTitle} (SNES) — clique na tela se o som não começar.`,
+      );
     } else {
       throw new Error("Sistema não suportado.");
     }
@@ -1018,9 +1120,30 @@ document.addEventListener("keydown", (event) => {
 });
 
 document.addEventListener("fullscreenchange", () => {
-  requestAnimationFrame(fitScreen);
+  lastScreenFitKey = "";
+  scheduleFitScreen();
 });
-window.addEventListener("resize", fitScreen);
+window.addEventListener("resize", scheduleFitScreen, { passive: true });
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", scheduleFitScreen, { passive: true });
+}
+
+document.addEventListener("visibilitychange", () => {
+  if (!state.snesEmulator || state.system !== "snes") return;
+  if (document.hidden) {
+    if (state.running) {
+      state.snesEmulator.pause();
+      state.pausedByVisibility = true;
+    }
+    return;
+  }
+  if (state.pausedByVisibility) {
+    state.snesEmulator.resume();
+    state.running = true;
+    state.pausedByVisibility = false;
+    syncControls();
+  }
+});
 
 window.setInterval(() => {
   if (!state.running) {
@@ -1067,6 +1190,7 @@ async function maybeAutoplayWebGame() {
   await launchWebGame(game, { continueSession });
 }
 
+configureNostalgistDefaults();
 syncControls();
 showOriginHints();
 loadWebGames()
